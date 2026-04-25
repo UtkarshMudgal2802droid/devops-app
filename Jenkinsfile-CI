@@ -28,7 +28,7 @@
             }
             steps {
                 unstash "source-code"
-                sh "mvn test"
+                bat "mvn test"  // Fixed: sh → bat for Windows
             }
         }
 
@@ -41,7 +41,7 @@
             }
             steps {
                 unstash "source-code"
-                sh "mvn clean package -DskipTests"
+                bat "mvn clean package -DskipTests"  // Fixed: sh → bat
                 stash name: "jar-file", includes: "target/*.jar"
             }
         }
@@ -83,7 +83,13 @@
 
     post {
         success {
-            echo "✅ CI done! Triggering CD pipeline with tag: ${IMAGE_TAG}"
+            echo "CI done! Triggering devops-CD pipeline with tag: ${IMAGE_TAG}"
+            build job: 'devops-CD',
+                  wait: true,
+                  parameters: [string(name: 'BUILD_TAG', value: "${IMAGE_TAG}")]
+        }
+        failure {
+            echo "CI failed. CD pipeline NOT triggered."
         }
     }
 }
