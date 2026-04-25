@@ -13,9 +13,6 @@ pipeline {
         stage("Checkout") {
             agent any
             steps {
-                git branch: "main",
-                    credentialsId: "DESKTOP-5M8IHK8$git",
-                    url: "git@github.com:UtkarshMudgal2802droid/devops-app.git"
                 stash name: "source-code", includes: "**/*"
             }
         }
