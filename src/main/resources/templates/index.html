@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>DevOps Dashboard</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; min-height: 100vh; }
+        .layout { display: flex; min-height: 100vh; }
+
+        aside {
+            width: 220px; background: #0f172a; color: #cbd5e1;
+            display: flex; flex-direction: column; padding: 24px 0;
+            flex-shrink: 0; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+        }
+
+        .brand {
+            display: flex; align-items: center; gap: 10px;
+            padding: 0 20px 24px; border-bottom: 1px solid #1e293b;
+        }
+
+        .brand-icon {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 8px; display: flex; align-items: center;
+            justify-content: center; flex-shrink: 0;
+        }
+
+        .brand-icon svg { width: 16px; height: 16px; stroke: #fff; fill: none; }
+        .brand-name { font-size: 0.9rem; font-weight: 700; color: #f8fafc; }
+        .brand-sub  { font-size: 0.7rem; color: #64748b; }
+
+        nav { padding: 20px 12px; flex: 1; }
+
+        .nav-label {
+            font-size: 0.65rem; font-weight: 600; color: #475569;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            padding: 0 8px; margin-bottom: 6px; margin-top: 18px;
+        }
+
+        a.nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 10px; border-radius: 6px; font-size: 0.82rem;
+            color: #94a3b8; text-decoration: none; margin-bottom: 2px;
+            transition: background 0.15s, color 0.15s; cursor: pointer;
+        }
+
+        a.nav-item:hover  { background: #1e293b; color: #cbd5e1; }
+        a.nav-item.active { background: #1e293b; color: #f8fafc; }
+
+        a.nav-item svg {
+            width: 15px; height: 15px; stroke: currentColor;
+            fill: none; flex-shrink: 0; stroke-width: 1.8;
+        }
+
+        .sidebar-footer {
+            padding: 14px 20px; border-top: 1px solid #1e293b;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .avatar-sm {
+            width: 28px; height: 28px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; font-size: 0.65rem; font-weight: 700;
+            color: #fff; flex-shrink: 0;
+        }
+
+        .sidebar-user-name { font-size: 0.75rem; color: #64748b; }
+
+        .main { flex: 1; display: flex; flex-direction: column; margin-left: 220px; min-height: 100vh; }
+
+        .topbar {
+            background: #fff; border-bottom: 1px solid #e2e8f0;
+            padding: 0 32px; height: 58px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 50;
+        }
+
+        .topbar h1 { font-size: 1rem; font-weight: 600; color: #0f172a; }
+        .topbar-right { display: flex; align-items: center; gap: 14px; }
+
+        .status-pill {
+            display: flex; align-items: center; gap: 6px;
+            background: #f0fdf4; border: 1px solid #bbf7d0;
+            color: #16a34a; padding: 4px 12px;
+            border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+        }
+
+        .status-pill .dot {
+            width: 6px; height: 6px; background: #22c55e;
+            border-radius: 50%; animation: blink 1.8s infinite;
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        .time-badge { font-size: 0.75rem; color: #64748b; font-family: 'JetBrains Mono', monospace; }
+
+        .profile-wrap { position: relative; }
+
+        .profile-circle {
+            width: 34px; height: 34px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; font-size: 0.72rem; font-weight: 700;
+            color: #fff; cursor: pointer; border: 2px solid #e2e8f0;
+            transition: border-color 0.2s;
+        }
+
+        .profile-circle:hover { border-color: #6366f1; }
+
+        .profile-dropdown {
+            display: none; position: absolute; top: 44px; right: 0;
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 8px 0; min-width: 180px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08); z-index: 200;
+        }
+
+        .profile-wrap:hover .profile-dropdown { display: block; }
+
+        .profile-info { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; }
+        .profile-info .name { font-size: 0.82rem; font-weight: 600; color: #0f172a; }
+        .profile-info .role { font-size: 0.72rem; color: #94a3b8; margin-top: 2px; }
+
+        .dropdown-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 16px; font-size: 0.8rem; color: #475569;
+            cursor: pointer; transition: background 0.1s;
+        }
+
+        .dropdown-item:hover { background: #f8fafc; color: #0f172a; }
+        .dropdown-item svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; flex-shrink: 0; }
+
+        .page { display: none; padding: 28px 32px; }
+        .page.active { display: block; }
+
+        .page-heading { font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+        .page-sub { font-size: 0.82rem; color: #64748b; margin-bottom: 24px; }
+
+        .stat-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 28px; }
+
+        .stat-card {
+            background: #fff; border-radius: 12px; padding: 20px;
+            border: 1px solid #e2e8f0; position: relative; overflow: hidden;
+        }
+
+        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+        .stat-card.purple::before { background: linear-gradient(90deg,#8b5cf6,#6366f1); }
+        .stat-card.blue::before   { background: linear-gradient(90deg,#3b82f6,#06b6d4); }
+        .stat-card.green::before  { background: linear-gradient(90deg,#22c55e,#10b981); }
+        .stat-card.orange::before { background: linear-gradient(90deg,#f97316,#f59e0b); }
+
+        .stat-icon {
+            width: 34px; height: 34px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 14px;
+        }
+
+        .stat-card.purple .stat-icon { background: #f5f3ff; }
+        .stat-card.blue   .stat-icon { background: #eff6ff; }
+        .stat-card.green  .stat-icon { background: #f0fdf4; }
+        .stat-card.orange .stat-icon { background: #fff7ed; }
+
+        .stat-icon svg { width: 16px; height: 16px; fill: none; stroke-width: 1.8; }
+        .stat-card.purple .stat-icon svg { stroke: #7c3aed; }
+        .stat-card.blue   .stat-icon svg { stroke: #2563eb; }
+        .stat-card.green  .stat-icon svg { stroke: #16a34a; }
+        .stat-card.orange .stat-icon svg { stroke: #ea580c; }
+
+        .stat-label { font-size: 0.72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+        .stat-value { font-size: 1.4rem; font-weight: 700; color: #0f172a; font-family: 'JetBrains Mono', monospace; }
+        .stat-sub   { font-size: 0.72rem; color: #94a3b8; margin-top: 4px; }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+
+        .panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+
+        .panel-header {
+            padding: 14px 20px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        .panel-title { font-size: 0.85rem; font-weight: 600; color: #0f172a; }
+
+        .panel-badge { font-size: 0.7rem; font-weight: 500; padding: 2px 8px; border-radius: 999px; }
+        .badge-blue   { background: #eff6ff; color: #2563eb; }
+        .badge-green  { background: #f0fdf4; color: #16a34a; }
+        .badge-purple { background: #f5f3ff; color: #7c3aed; }
+
+        .ep-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 20px; border-bottom: 1px solid #f8fafc;
+            font-size: 0.8rem; cursor: pointer;
+        }
+
+        .ep-row:last-child { border-bottom: none; }
+        .ep-row:hover { background: #f8fafc; }
+
+        .method {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; font-weight: 600;
+            padding: 2px 7px; border-radius: 4px; background: #eff6ff; color: #1d4ed8;
+            border: 1px solid #bfdbfe; min-width: 38px; text-align: center;
+        }
+
+        .ep-path { font-family: 'JetBrains Mono', monospace; color: #334155; font-size: 0.78rem; flex: 1; }
+        .ep-desc { color: #94a3b8; flex: 1; }
+
+        .ep-btn {
+            font-size: 0.75rem; font-weight: 500; color: #6366f1;
+            background: none; border: none; cursor: pointer;
+            pointer-events: none;
+        }
+
+        .build-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid #f8fafc; font-size: 0.8rem; }
+        .build-row:last-child { border-bottom: none; }
+
+        .build-num { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #6366f1; font-weight: 600; min-width: 50px; }
+
+        .build-status { padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 600; }
+        .build-status.success { background: #f0fdf4; color: #16a34a; }
+        .build-status.running { background: #eff6ff; color: #2563eb; }
+
+        .build-info { flex: 1; color: #334155; }
+        .build-time { color: #94a3b8; font-size: 0.72rem; }
+
+        .pipeline-body { padding: 20px; }
+        .pipe-steps { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .pipe-step  { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+        .pipe-box { padding: 7px 14px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; white-space: nowrap; }
+        .pipe-box.done   { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
+        .pipe-box.active { background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff; border: none; }
+
+        .pipe-dot   { width: 5px; height: 5px; background: #22c55e; border-radius: 50%; }
+        .pipe-arrow { color: #cbd5e1; font-size: 1rem; padding-bottom: 16px; }
+
+        .result-label { font-size: 0.7rem; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+
+        .result-box {
+            background: #0f172a; border-radius: 12px; padding: 24px;
+            font-family: 'JetBrains Mono', monospace; color: #e2e8f0;
+            font-size: 0.82rem; line-height: 1.7; min-height: 100px;
+            white-space: pre-wrap; word-break: break-all;
+            border: 1px solid #1e293b; margin-top: 8px; position: relative;
+        }
+
+        .result-loading { color: #475569; }
+        .result-success { color: #4ade80; }
+        .result-key     { color: #7dd3fc; }
+        .result-string  { color: #fde68a; }
+        .result-number  { color: #f9a8d4; }
+
+        .copy-btn {
+            position: absolute; top: 12px; right: 12px;
+            background: #1e293b; border: 1px solid #334155;
+            color: #94a3b8; font-size: 0.7rem; padding: 4px 10px;
+            border-radius: 5px; cursor: pointer; font-family: 'Inter', sans-serif;
+        }
+
+        .copy-btn:hover { background: #334155; color: #f8fafc; }
+
+        .env-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .env-table th {
+            text-align: left; padding: 10px 16px;
+            font-size: 0.7rem; font-weight: 600; color: #94a3b8;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            border-bottom: 1px solid #f1f5f9; background: #f8fafc;
+        }
+        .env-table td { padding: 12px 16px; border-bottom: 1px solid #f8fafc; color: #334155; }
+        .env-table tr:last-child td { border-bottom: none; }
+        .env-table tr:hover td { background: #f8fafc; }
+        .env-val { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #6366f1; font-weight: 500; }
+
+        .ask-btn {
+            margin-top: 16px;
+            background: linear-gradient(135deg,#6366f1,#8b5cf6);
+            color: #fff; border: none; padding: 10px 20px;
+            border-radius: 8px; font-size: 0.82rem; font-weight: 600;
+            cursor: pointer; display: flex; align-items: center; gap: 8px;
+        }
+
+        .ask-btn svg { width: 14px; height: 14px; stroke: #fff; fill: none; stroke-width: 2; }
+    </style>
+</head>
+<body>
+<div class="layout">
+
+    <aside>
+        <div class="brand">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                </svg>
+            </div>
+            <div>
+                <div class="brand-name">devops-app</div>
+                <div class="brand-sub">RCOEM · 2026</div>
+            </div>
+        </div>
+
+        <nav id="main-nav">
+            <div class="nav-label">Overview</div>
+            <a class="nav-item active" data-page="dashboard">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                Dashboard
+            </a>
+            <a class="nav-item" data-page="endpoints">
+                <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+                Endpoints
+            </a>
+            <a class="nav-item" data-page="pipeline">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                Pipeline
+            </a>
+
+            <div class="nav-label">Info</div>
+            <a class="nav-item" data-page="environment">
+                <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Environment
+            </a>
+            <a class="nav-item" data-page="buildinfo">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+                Build Info
+            </a>
+            <a class="nav-item" data-page="health">
+                <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                Health
+            </a>
+            <a class="nav-item" data-page="oracle">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                Oracle
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="avatar-sm">UM</div>
+            <div class="sidebar-user-name">Utkarsh Mudgal</div>
+        </div>
+    </aside>
+
+    <div class="main">
+        <div class="topbar">
+            <h1 id="page-title">Dashboard</h1>
+            <div class="topbar-right">
+                <div class="status-pill"><div class="dot"></div>Operational</div>
+                <div class="time-badge" th:text="${deployedAt}">--</div>
+                <div class="profile-wrap">
+                    <div class="profile-circle">UM</div>
+                    <div class="profile-dropdown">
+                        <div class="profile-info">
+                            <div class="name">Utkarsh Mudgal</div>
+                            <div class="role">RCOEM DevOps 2026</div>
+                        </div>
+                        <div class="dropdown-item" data-page="buildinfo">
+                            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+                            Build Info
+                        </div>
+                        <div class="dropdown-item" data-page="health">
+                            <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                            Health
+                        </div>
+                        <div class="dropdown-item" data-page="oracle">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                            Oracle
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div class="page active" id="page-dashboard">
+            <div class="stat-row">
+                <div class="stat-card purple">
+                    <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+                    <div class="stat-label">Environment</div>
+                    <div class="stat-value" th:text="${env}">local</div>
+                    <div class="stat-sub">Active profile</div>
+                </div>
+                <div class="stat-card blue">
+                    <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></div>
+                    <div class="stat-label">Build</div>
+                    <div class="stat-value" th:text="'#' + ${buildNumber}">#local</div>
+                    <div class="stat-sub">Jenkins build</div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+                    <div class="stat-label">Status</div>
+                    <div class="stat-value">Online</div>
+                    <div class="stat-sub">All systems up</div>
+                </div>
+                <div class="stat-card orange">
+                    <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></div>
+                    <div class="stat-label">Source Path</div>
+                    <div class="stat-value" style="font-size:0.9rem" th:text="${path}">./local</div>
+                    <div class="stat-sub">Configured path</div>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">API Endpoints</span>
+                        <span class="panel-badge badge-blue">4 routes</span>
+                    </div>
+                    <div class="ep-row" data-page="health">
+                        <span class="method">GET</span>
+                        <span class="ep-path">/devops/health</span>
+                        <span class="ep-desc">Health check</span>
+                        <button class="ep-btn">Open →</button>
+                    </div>
+                    <div class="ep-row" data-page="environment">
+                        <span class="method">GET</span>
+                        <span class="ep-path">/devops/env-path</span>
+                        <span class="ep-desc">Environment</span>
+                        <button class="ep-btn">Open →</button>
+                    </div>
+                    <div class="ep-row" data-page="oracle">
+                        <span class="method">GET</span>
+                        <span class="ep-path">/devops/oracle</span>
+                        <span class="ep-desc">Fortune teller</span>
+                        <button class="ep-btn">Open →</button>
+                    </div>
+                    <div class="ep-row" data-page="buildinfo">
+                        <span class="method">GET</span>
+                        <span class="ep-path">/devops/build-info</span>
+                        <span class="ep-desc">Build metadata</span>
+                        <button class="ep-btn">Open →</button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">Recent Builds</span>
+                        <span class="panel-badge badge-green">CI/CD</span>
+                    </div>
+                    <div class="build-row">
+                        <span class="build-num" th:text="'#' + ${buildNumber}">#local</span>
+                        <span class="build-status running">Running</span>
+                        <span class="build-info">main → ECR → EC2</span>
+                        <span class="build-time" th:text="${deployedAt}">--</span>
+                    </div>
+                    <div class="build-row">
+                        <span class="build-num">#prev</span>
+                        <span class="build-status success">Success</span>
+                        <span class="build-info">main → ECR → EC2</span>
+                        <span class="build-time">Previous</span>
+                    </div>
+                    <div class="build-row">
+                        <span class="build-num">#--</span>
+                        <span class="build-status success">Success</span>
+                        <span class="build-info">Awaiting next push</span>
+                        <span class="build-time">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">CI/CD Pipeline</span>
+                    <span class="panel-badge badge-green">Automated</span>
+                </div>
+                <div class="pipeline-body">
+                    <div class="pipe-steps">
+                        <div class="pipe-step"><div class="pipe-box done">GitHub Push</div><div class="pipe-dot"></div></div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-step"><div class="pipe-box done">Jenkins CI</div><div class="pipe-dot"></div></div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-step"><div class="pipe-box done">Maven Build</div><div class="pipe-dot"></div></div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-step"><div class="pipe-box done">Docker Image</div><div class="pipe-dot"></div></div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-step"><div class="pipe-box done">Push to ECR</div><div class="pipe-dot"></div></div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-step"><div class="pipe-box active">Live on EC2</div><div class="pipe-dot"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Endpoints -->
+        <div class="page" id="page-endpoints">
+            <div class="page-heading">API Endpoints</div>
+            <div class="page-sub">Click any row to run and view the response live.</div>
+            <div class="panel">
+                <div class="ep-row" data-fetch="/devops/health" data-result="result-endpoints">
+                    <span class="method">GET</span>
+                    <span class="ep-path">/devops/health</span>
+                    <span class="ep-desc">Returns Online if service is up</span>
+                    <button class="ep-btn">Run →</button>
+                </div>
+                <div class="ep-row" data-fetch="/devops/env-path" data-result="result-endpoints">
+                    <span class="method">GET</span>
+                    <span class="ep-path">/devops/env-path</span>
+                    <span class="ep-desc">Returns active environment path</span>
+                    <button class="ep-btn">Run →</button>
+                </div>
+                <div class="ep-row" data-fetch="/devops/oracle" data-result="result-endpoints">
+                    <span class="method">GET</span>
+                    <span class="ep-path">/devops/oracle</span>
+                    <span class="ep-desc">Fortune teller — Week 1</span>
+                    <button class="ep-btn">Run →</button>
+                </div>
+                <div class="ep-row" data-fetch="/devops/build-info" data-result="result-endpoints">
+                    <span class="method">GET</span>
+                    <span class="ep-path">/devops/build-info</span>
+                    <span class="ep-desc">Returns build metadata as JSON</span>
+                    <button class="ep-btn">Run →</button>
+                </div>
+            </div>
+            <div class="result-label" style="margin-top:20px">Response</div>
+            <div class="result-box" id="result-endpoints">
+                <span class="result-loading">Click an endpoint above to see the response</span>
+                <button class="copy-btn" onclick="copyResult('result-endpoints')">Copy</button>
+            </div>
+        </div>
+
+        <!-- Pipeline -->
+        <div class="page" id="page-pipeline">
+            <div class="page-heading">CI/CD Pipeline</div>
+            <div class="page-sub">Automated deployment from code push to production.</div>
+            <div class="panel" style="margin-bottom:20px">
+                <div class="pipeline-body">
+                    <div class="pipe-steps">
+                        <div class="pipe-step"><div class="pipe-box done">GitHub Push</div><div class="pipe-dot"></div></div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-step"><div class="pipe-box done">Jenkins CI</div><div class="pipe-dot"></div></div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-step"><div class="pipe-box done">mvn test</div><div class="pipe-dot"></div></div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-step"><div class="pipe-box done">mvn package</div><div class="pipe-dot"></div></div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-step"><div class="pipe-box done">Docker Build</div><div class="pipe-dot"></div></div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-step"><div class="pipe-box done">Push to ECR</div><div class="pipe-dot"></div></div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-step"><div class="pipe-box done">Jenkins CD</div><div class="pipe-dot"></div></div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-step"><div class="pipe-box active">Live on EC2</div><div class="pipe-dot"></div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="two-col">
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">CI Pipeline</span>
+                        <span class="panel-badge badge-blue">Jenkinsfile-CI</span>
+                    </div>
+                    <div class="build-row"><span class="build-num">1</span><span class="build-status success">Done</span><span class="build-info">Checkout from GitHub</span></div>
+                    <div class="build-row"><span class="build-num">2</span><span class="build-status success">Done</span><span class="build-info">mvn test (Docker agent)</span></div>
+                    <div class="build-row"><span class="build-num">3</span><span class="build-status success">Done</span><span class="build-info">mvn package -DskipTests</span></div>
+                    <div class="build-row"><span class="build-num">4</span><span class="build-status success">Done</span><span class="build-info">Docker build image</span></div>
+                    <div class="build-row"><span class="build-num">5</span><span class="build-status success">Done</span><span class="build-info">Push to AWS ECR</span></div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">CD Pipeline</span>
+                        <span class="panel-badge badge-purple">Jenkinsfile-CD</span>
+                    </div>
+                    <div class="build-row"><span class="build-num">1</span><span class="build-status success">Done</span><span class="build-info">Pull image from ECR</span></div>
+                    <div class="build-row"><span class="build-num">2</span><span class="build-status success">Done</span><span class="build-info">Stop old container</span></div>
+                    <div class="build-row"><span class="build-num">3</span><span class="build-status success">Done</span><span class="build-info">Run new container</span></div>
+                    <div class="build-row"><span class="build-num">4</span><span class="build-status running">Active</span><span class="build-info">Verify deployment</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Environment -->
+        <div class="page" id="page-environment">
+            <div class="page-heading">Environment</div>
+            <div class="page-sub">Current active Spring profile and configuration values.</div>
+            <div class="panel" style="margin-bottom:20px">
+                <table class="env-table">
+                    <thead><tr><th>Property</th><th>Value</th><th>Source</th></tr></thead>
+                    <tbody>
+                    <tr><td>Active Profile</td><td class="env-val" th:text="${env}">local</td><td>APP_ENV env var</td></tr>
+                    <tr><td>Source Path</td><td class="env-val" th:text="${path}">./local</td><td>application.properties</td></tr>
+                    <tr><td>Build Number</td><td class="env-val" th:text="${buildNumber}">local</td><td>BUILD_NUMBER env var</td></tr>
+                    <tr><td>Server Port</td><td class="env-val">8080</td><td>application.properties</td></tr>
+                    <tr><td>Deployed At</td><td class="env-val" th:text="${deployedAt}">--</td><td>Runtime</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="result-label">Live Response — /devops/env-path</div>
+            <div class="result-box" id="result-env">
+                <span class="result-loading">Loading...</span>
+                <button class="copy-btn" onclick="copyResult('result-env')">Copy</button>
+            </div>
+        </div>
+
+        <!-- Build Info -->
+        <div class="page" id="page-buildinfo">
+            <div class="page-heading">Build Info</div>
+            <div class="page-sub">Live response from /devops/build-info endpoint.</div>
+            <div class="result-box" id="result-buildinfo">
+                <span class="result-loading">Loading...</span>
+                <button class="copy-btn" onclick="copyResult('result-buildinfo')">Copy</button>
+            </div>
+        </div>
+
+        <!-- Health -->
+        <div class="page" id="page-health">
+            <div class="page-heading">Health Check</div>
+            <div class="page-sub">Live response from /devops/health endpoint.</div>
+            <div class="result-box" id="result-health">
+                <span class="result-loading">Loading...</span>
+                <button class="copy-btn" onclick="copyResult('result-health')">Copy</button>
+            </div>
+        </div>
+
+        <!-- Oracle -->
+        <div class="page" id="page-oracle">
+            <div class="page-heading">Oracle</div>
+            <div class="page-sub">Live response from /devops/oracle — refreshes on every visit.</div>
+            <div class="result-box" id="result-oracle">
+                <span class="result-loading">Consulting the Oracle...</span>
+                <button class="copy-btn" onclick="copyResult('result-oracle')">Copy</button>
+            </div>
+            <button class="ask-btn" id="ask-again-btn">
+                <svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                Ask Again
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+
+    const BASE = window.location.origin;
+
+    const pageTitles = {
+        dashboard:   'Dashboard',
+        endpoints:   'API Endpoints',
+        pipeline:    'CI/CD Pipeline',
+        environment: 'Environment',
+        buildinfo:   'Build Info',
+        health:      'Health Check',
+        oracle:      'Oracle'
+    };
+
+    const autoFetch = {
+        environment: { url: BASE + '/devops/env-path',   el: 'result-env'       },
+        buildinfo:   { url: BASE + '/devops/build-info',  el: 'result-buildinfo' },
+        health:      { url: BASE + '/devops/health',      el: 'result-health'    },
+        oracle:      { url: BASE + '/devops/oracle',      el: 'result-oracle'    }
+    };
+
+    // slug in URL  →  internal page id
+    const slugToPage = {
+        'dashboard':   'dashboard',
+        'endpoints':   'endpoints',
+        'pipeline':    'pipeline',
+        'environment': 'environment',
+        'build-info':  'buildinfo',
+        'health':      'health',
+        'oracle':      'oracle'
+    };
+
+    // internal page id  →  slug shown in URL
+    const pageToSlug = {
+        dashboard:   'dashboard',
+        endpoints:   'endpoints',
+        pipeline:    'pipeline',
+        environment: 'environment',
+        buildinfo:   'build-info',
+        health:      'health',
+        oracle:      'oracle'
+    };
+
+    // ── Core navigation ──────────────────────────────────────
+    function showPage(id, addHistory) {
+        if (!document.getElementById('page-' + id)) return;
+
+        document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+        document.getElementById('page-' + id).classList.add('active');
+        document.getElementById('page-title').textContent = pageTitles[id] || id;
+        document.querySelectorAll('a.nav-item').forEach(function(el) {
+            el.classList.toggle('active', el.dataset.page === id);
+        });
+
+        // update browser URL without reloading
+        var slug = pageToSlug[id] || id;
+        var newUrl = '/devops/' + slug;
+        if (addHistory === false) {
+            history.replaceState({ page: id }, pageTitles[id] || id, newUrl);
+        } else {
+            history.pushState({ page: id }, pageTitles[id] || id, newUrl);
+        }
+
+        if (autoFetch[id]) fetchEndpoint(autoFetch[id].url, autoFetch[id].el);
+    }
+
+    // ── Back / Forward button support ────────────────────────
+    window.addEventListener('popstate', function(e) {
+        var id = (e.state && e.state.page) ? e.state.page : 'dashboard';
+        showPage(id, false);
+    });
+
+    // ── On first load: resolve URL → correct page ─────────────
+    (function() {
+        var parts = window.location.pathname.replace(/\/+$/, '').split('/');
+        var slug  = parts[parts.length - 1];
+        var id    = slugToPage[slug] || 'dashboard';
+        showPage(id, false);
+    })();
+
+    // ── Single delegated click listener ──────────────────────
+    document.addEventListener('click', function(e) {
+        var navItem = e.target.closest('a.nav-item');
+        if (navItem && navItem.dataset.page) {
+            e.preventDefault();
+            showPage(navItem.dataset.page);
+            return;
+        }
+
+        var epRowNav = e.target.closest('.ep-row[data-page]');
+        if (epRowNav) {
+            showPage(epRowNav.dataset.page);
+            return;
+        }
+
+        var epRowFetch = e.target.closest('.ep-row[data-fetch]');
+        if (epRowFetch) {
+            fetchEndpoint(BASE + epRowFetch.dataset.fetch, epRowFetch.dataset.result);
+            return;
+        }
+
+        var dropItem = e.target.closest('.dropdown-item[data-page]');
+        if (dropItem) {
+            showPage(dropItem.dataset.page);
+            return;
+        }
+
+        if (e.target.closest('#ask-again-btn')) {
+            fetchEndpoint(BASE + '/devops/oracle', 'result-oracle');
+            return;
+        }
+    });
+
+    // ── Fetch helper ──────────────────────────────────────────
+    function fetchEndpoint(url, resultId) {
+        var box = document.getElementById(resultId);
+        box.innerHTML = '<span class="result-loading">Fetching ' + url + '...</span>'
+                      + '<button class="copy-btn" onclick="copyResult(\'' + resultId + '\')">Copy</button>';
+        fetch(url)
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + r.statusText);
+                return r.text();
+            })
+            .then(function(data) {
+                var html;
+                try {
+                    html = syntaxHighlight(JSON.stringify(JSON.parse(data), null, 2));
+                } catch(err) {
+                    html = '<span class="result-success">' + escapeHtml(data) + '</span>';
+                }
+                box.innerHTML = html
+                              + '<button class="copy-btn" onclick="copyResult(\'' + resultId + '\')">Copy</button>';
+            })
+            .catch(function(err) {
+                box.innerHTML = '<span style="color:#f87171">Error: ' + escapeHtml(err.message) + '</span>'
+                              + '<button class="copy-btn" onclick="copyResult(\'' + resultId + '\')">Copy</button>';
+            });
+    }
+
+    function syntaxHighlight(json) {
+        return json.replace(
+            /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+            function(m) {
+                if (/^"/.test(m)) {
+                    return /:$/.test(m)
+                        ? '<span class="result-key">'    + m + '</span>'
+                        : '<span class="result-string">' + m + '</span>';
+                }
+                return '<span class="result-number">' + m + '</span>';
+            }
+        );
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function copyResult(id) {
+        var text = document.getElementById(id).innerText.replace('Copy','').trim();
+        navigator.clipboard.writeText(text).then(function() {
+            var btn = document.querySelector('#' + id + ' .copy-btn');
+            btn.textContent = 'Copied!';
+            setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+        });
+    }
+
+    /*]]>*/
+</script>
+</body>
+</html>
