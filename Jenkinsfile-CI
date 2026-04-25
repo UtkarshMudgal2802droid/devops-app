@@ -1,0 +1,74 @@
+﻿pipeline {
+    agent any
+    
+    tools {
+        maven "maven"
+    }
+    
+    environment {
+        AWS_ACCOUNT_ID = "851382689538"
+        AWS_REGION = "ap-south-1"
+        REPO_NAME = "devops-app"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        REGISTRY_URL = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    }
+    
+    stages {
+        stage("Checkout") {
+            steps {
+                git branch: "main", 
+                    credentialsId: "github", 
+                    url: "https://github.com/UtkarshMudgal2802droid/devops-app.git"
+            }
+        }
+        
+        stage("Test") {
+            steps {
+                bat "mvn test"
+            }
+        }
+
+        stage("Build JAR") {
+            steps {
+                bat "mvn clean package -DskipTests"
+            }
+        }
+
+        stage("Build Docker Image") {
+            steps {
+                script {
+                    bat "docker build -t ${REPO_NAME}:${IMAGE_TAG} ."
+                }
+            }
+        }
+
+        stage("Login to ECR") {
+            steps {
+                script {
+                    withCredentials([[$class: "AmazonWebServicesCredentialsBinding", credentialsId: "aws-credentials"]]) {
+                        bat "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY_URL}"
+                    }
+                }
+            }
+        }
+        
+        stage("Push to ECR") {
+            steps {
+                script {
+                    bat """
+                        docker tag ${REPO_NAME}:${IMAGE_TAG} ${REGISTRY_URL}/${REPO_NAME}:${IMAGE_TAG}
+                        docker tag ${REPO_NAME}:${IMAGE_TAG} ${REGISTRY_URL}/${REPO_NAME}:latest
+                        docker push ${REGISTRY_URL}/${REPO_NAME}:${IMAGE_TAG}
+                        docker push ${REGISTRY_URL}/${REPO_NAME}:latest
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ CI Complete - Image pushed to ECR"
+        }
+    }
+}
