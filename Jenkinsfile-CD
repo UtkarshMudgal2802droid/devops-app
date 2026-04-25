@@ -20,16 +20,7 @@ pipeline {
     stages {
         stage("Fix PEM Permissions") {
             steps {
-                script {
-                    withCredentials([file(credentialsId: "ec2-pem-key", variable: "PEM_FILE")]) {
-                        bat """
-                            icacls "%PEM_FILE%" /reset
-                            icacls "%PEM_FILE%" /inheritance:r
-                            icacls "%PEM_FILE%" /grant:r *S-1-5-18:(R)
-                            icacls "%PEM_FILE%" /grant:r "%USERNAME%":(R) || exit /b 0
-                        """
-                    }
-                }
+                echo "PEM permissions skipped - Windows OpenSSH works without strict icacls"
             }
         }
 
@@ -39,6 +30,8 @@ pipeline {
                     def tag = params.BUILD_TAG
                     withCredentials([file(credentialsId: "ec2-pem-key", variable: "PEM_FILE")]) {
                         bat """
+                            type nul > "%PEM_FILE%"
+                            icacls "%PEM_FILE%" /inheritance:r /grant *S-1-5-18:(R) || true
                             ssh -i "%PEM_FILE%" -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} ^
                             "aws ecr get-login-password --region ${AWS_REGION} | sudo docker login --username AWS --password-stdin ${REGISTRY_URL} && sudo docker pull ${REGISTRY_URL}/${REPO_NAME}:${tag}"
                         """
