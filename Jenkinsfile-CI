@@ -1,74 +1,89 @@
 ﻿pipeline {
-    agent any
-    
-    tools {
-        maven "maven"
-    }
-    
+    agent none
+
     environment {
         AWS_ACCOUNT_ID = "851382689538"
-        AWS_REGION = "ap-south-1"
-        REPO_NAME = "devops-app"
-        IMAGE_TAG = "${BUILD_NUMBER}"
-        REGISTRY_URL = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        AWS_REGION     = "ap-south-1"
+        REPO_NAME      = "devops-app"
+        IMAGE_TAG      = "${env.BUILD_NUMBER}"
+        REGISTRY_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
     }
-    
+
     stages {
         stage("Checkout") {
+            agent any
             steps {
-                git branch: "main", 
-                    credentialsId: "github", 
+                git branch: "main",
                     url: "https://github.com/UtkarshMudgal2802droid/devops-app.git"
+                stash name: "source-code", includes: "**/*"
             }
         }
-        
+
         stage("Test") {
+            agent {
+                docker {
+                    image "maven:3.9.6-eclipse-temurin-17"
+                    args "-v ${WORKSPACE}/.m2:/root/.m2"
+                }
+            }
             steps {
-                bat "mvn test"
+                unstash "source-code"
+                sh "mvn test"
             }
         }
 
         stage("Build JAR") {
+            agent {
+                docker {
+                    image "maven:3.9.6-eclipse-temurin-17"
+                    args "-v ${WORKSPACE}/.m2:/root/.m2"
+                }
+            }
             steps {
-                bat "mvn clean package -DskipTests"
+                unstash "source-code"
+                sh "mvn clean package -DskipTests"
+                stash name: "jar-file", includes: "target/*.jar"
             }
         }
 
         stage("Build Docker Image") {
+            agent any
             steps {
-                script {
-                    bat "docker build -t ${REPO_NAME}:${IMAGE_TAG} ."
-                }
+                unstash "jar-file"
+                bat "docker build -t ${REPO_NAME}:${IMAGE_TAG} ."
             }
         }
 
         stage("Login to ECR") {
+            agent any
             steps {
                 script {
-                    withCredentials([[$class: "AmazonWebServicesCredentialsBinding", credentialsId: "aws-credentials"]]) {
-                        bat "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY_URL}"
+                    withCredentials([[$class: "AmazonWebServicesCredentialsBinding",
+                                      credentialsId: "aws-credentials"]]) {
+                        bat """
+                            aws ecr get-login-password --region ${AWS_REGION} > ecr_pass.txt
+                            docker login --username AWS --password-stdin ${REGISTRY_URL} < ecr_pass.txt
+                            del ecr_pass.txt
+                        """
                     }
                 }
             }
         }
-        
+
         stage("Push to ECR") {
+            agent any
             steps {
-                script {
-                    bat """
-                        docker tag ${REPO_NAME}:${IMAGE_TAG} ${REGISTRY_URL}/${REPO_NAME}:${IMAGE_TAG}
-                        docker tag ${REPO_NAME}:${IMAGE_TAG} ${REGISTRY_URL}/${REPO_NAME}:latest
-                        docker push ${REGISTRY_URL}/${REPO_NAME}:${IMAGE_TAG}
-                        docker push ${REGISTRY_URL}/${REPO_NAME}:latest
-                    """
-                }
+                bat """
+                    docker tag ${REPO_NAME}:${IMAGE_TAG} ${REGISTRY_URL}/${REPO_NAME}:${IMAGE_TAG}
+                    docker push ${REGISTRY_URL}/${REPO_NAME}:${IMAGE_TAG}
+                """
             }
         }
     }
 
     post {
         success {
-            echo "✅ CI Complete - Image pushed to ECR"
+            echo "✅ CI done! Triggering CD pipeline with tag: ${IMAGE_TAG}"
         }
     }
 }
