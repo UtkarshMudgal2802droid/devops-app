@@ -21,7 +21,7 @@ pipeline {
             agent {
                 docker {
                     image "maven:3.9.6-eclipse-temurin-17"
-                    args "-w /home/jenkins/agent/workspace"
+                    // FIXED: Empty args - let Jenkins handle volumes
                 }
             }
             steps {
@@ -34,7 +34,7 @@ pipeline {
             agent {
                 docker {
                     image "maven:3.9.6-eclipse-temurin-17"
-                    args "-w /home/jenkins/agent/workspace"
+                    // FIXED: Empty args
                 }
             }
             steps {
