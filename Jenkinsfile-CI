@@ -14,7 +14,8 @@ pipeline {
             agent any
             steps {
                 git branch: "main",
-                    url: "https://github.com/UtkarshMudgal2802droid/devops-app.git"
+                    credentialsId: "DESKTOP-5M8IHK8$git",
+                    url: "git@github.com:UtkarshMudgal2802droid/devops-app.git"
                 stash name: "source-code", includes: "**/*"
             }
         }
@@ -28,7 +29,7 @@ pipeline {
             }
             steps {
                 unstash "source-code"
-                bat "mvn test"  // Fixed: sh → bat for Windows
+                bat "mvn test"
             }
         }
 
@@ -41,7 +42,7 @@ pipeline {
             }
             steps {
                 unstash "source-code"
-                bat "mvn clean package -DskipTests"  // Fixed: sh → bat
+                bat "mvn clean package -DskipTests"
                 stash name: "jar-file", includes: "target/*.jar"
             }
         }
