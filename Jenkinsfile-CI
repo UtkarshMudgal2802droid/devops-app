@@ -1,5 +1,5 @@
 pipeline {
-    agent none
+    agent any
 
     environment {
         AWS_ACCOUNT_ID = "851382689538"
@@ -7,45 +7,42 @@ pipeline {
         REPO_NAME      = "devops-app"
         IMAGE_TAG      = "${env.BUILD_NUMBER}"
         REGISTRY_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        MAVEN_IMAGE    = "maven:3.9.6-eclipse-temurin-17"
     }
 
     stages {
         stage("Checkout") {
-            agent any
             steps {
-                stash name: "source-code", includes: "**/*"
+                checkout scm
             }
         }
 
         stage("Test") {
-            agent {
-                docker {
-                    image "maven:3.9.6-eclipse-temurin-17"
-                    // FIXED: Empty args - let Jenkins handle volumes
-                }
-            }
             steps {
-                unstash "source-code"
-                bat "mvn test"
+                bat """
+                    docker run --rm ^
+                      -v "%cd%":/workspace ^
+                      -w /workspace ^
+                      ${MAVEN_IMAGE} ^
+                      mvn test
+                """
             }
         }
 
         stage("Build JAR") {
-            agent {
-                docker {
-                    image "maven:3.9.6-eclipse-temurin-17"
-                    // FIXED: Empty args
-                }
-            }
             steps {
-                unstash "source-code"
-                bat "mvn clean package -DskipTests"
+                bat """
+                    docker run --rm ^
+                      -v "%cd%":/workspace ^
+                      -w /workspace ^
+                      ${MAVEN_IMAGE} ^
+                      mvn clean package -DskipTests
+                """
                 stash name: "jar-file", includes: "target/*.jar"
             }
         }
 
         stage("Build Docker Image") {
-            agent any
             steps {
                 unstash "jar-file"
                 bat "docker build -t ${REPO_NAME}:${IMAGE_TAG} ."
@@ -53,23 +50,19 @@ pipeline {
         }
 
         stage("Login to ECR") {
-            agent any
             steps {
-                script {
-                    withCredentials([[$class: "AmazonWebServicesCredentialsBinding",
-                                      credentialsId: "aws-credentials"]]) {
-                        bat """
-                            aws ecr get-login-password --region ${AWS_REGION} > ecr_pass.txt
-                            docker login --username AWS --password-stdin ${REGISTRY_URL} < ecr_pass.txt
-                            del ecr_pass.txt
-                        """
-                    }
+                withCredentials([[$class: "AmazonWebServicesCredentialsBinding",
+                                  credentialsId: "aws-credentials"]]) {
+                    bat """
+                        aws ecr get-login-password --region ${AWS_REGION} > ecr_pass.txt
+                        docker login --username AWS --password-stdin ${REGISTRY_URL} < ecr_pass.txt
+                        del ecr_pass.txt
+                    """
                 }
             }
         }
 
         stage("Push to ECR") {
-            agent any
             steps {
                 bat """
                     docker tag ${REPO_NAME}:${IMAGE_TAG} ${REGISTRY_URL}/${REPO_NAME}:${IMAGE_TAG}
