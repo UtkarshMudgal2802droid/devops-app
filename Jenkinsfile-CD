@@ -23,11 +23,7 @@ pipeline {
                 script {
                     withCredentials([file(credentialsId: "ec2-pem-key",
                                          variable: "PEM_FILE")]) {
-                        bat """
-                            icacls "%PEM_FILE%" /reset
-                            icacls "%PEM_FILE%" /inheritance:r
-                            icacls "%PEM_FILE%" /grant:r "%USERNAME%:(R)"
-                        """
+                        bat 'icacls "%PEM_FILE%" /grant Everyone:F'
                     }
                 }
             }
