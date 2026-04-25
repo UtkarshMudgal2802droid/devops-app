@@ -4,7 +4,7 @@ pipeline {
     environment {
         AWS_ACCOUNT_ID = "851382689538"
         AWS_REGION     = "ap-south-1"
-        REPO_NAME      = "devops-app"
+        REPO_NAME      = "devops"
         IMAGE_TAG      = "${env.BUILD_NUMBER}"
         REGISTRY_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         MAVEN_IMAGE    = "maven:3.9.6-eclipse-temurin-21"
