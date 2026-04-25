@@ -2,91 +2,48 @@ pipeline {
     agent any
 
     parameters {
-        string(name: "BUILD_TAG",
-               defaultValue: "latest",
-               description: "Image tag received from CI pipeline")
+        string(name: 'BUILD_TAG', defaultValue: 'latest', description: 'Tag received from CI pipeline')
     }
 
     environment {
-        AWS_ACCOUNT_ID  = "851382689538"
-        AWS_REGION      = "ap-south-1"
-        REPO_NAME       = "devops"
-        REGISTRY_URL    = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-        EC2_USER        = "ubuntu"
-        EC2_HOST        = "ec2-16-171-15-80.eu-north-1.compute.amazonaws.com"
-        CONTAINER_NAME  = "devops-app-container"
+        AWS_ACCOUNT_ID = "851382689538"
+        AWS_REGION = "ap-south-1"
+        REPO_NAME = "devops"
+        REGISTRY_URL = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        EC2_HOST = "ec2-16-171-15-80.eu-north-1.compute.amazonaws.com"
+        CONTAINER_NAME = "devops-container"
+        EC2_USER = "ubuntu"
     }
 
     stages {
-        stage("Fix PEM Permissions") {
+        stage('Login to ECR (Controller)') {
             steps {
-                echo "PEM permissions skipped - Windows OpenSSH works without strict icacls"
+                script {
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+                        bat "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY_URL}"
+                    }
+                }
             }
         }
 
-        stage("Pull Image from ECR on EC2") {
+        stage('PULL from ECR & RUN via SSH') {
             steps {
                 script {
                     def tag = params.BUILD_TAG
-                    withCredentials([file(credentialsId: "ec2-pem-key", variable: "PEM_FILE")]) {
+
+                    withCredentials([file(credentialsId: 'ec2-pem-key', variable: 'PEM_FILE')]) {
                         bat """
-                            type nul > "%PEM_FILE%"
-                            icacls "%PEM_FILE%" /inheritance:r /grant *S-1-5-18:(R) || true
-                            ssh -i "%PEM_FILE%" -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} ^
-                            "aws ecr get-login-password --region ${AWS_REGION} | sudo docker login --username AWS --password-stdin ${REGISTRY_URL} && sudo docker pull ${REGISTRY_URL}/${REPO_NAME}:${tag}"
+                        @echo off
+                        icacls "%PEM_FILE%" /reset
+                        icacls "%PEM_FILE%" /inheritance:r
+                        icacls "%PEM_FILE%" /grant:r *S-1-5-18:(R)
+                        icacls "%PEM_FILE%" /grant:r "%USERNAME%":(R)
+
+                        ssh -i "%PEM_FILE%" -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "aws ecr get-login-password --region ${AWS_REGION} | sudo docker login --username AWS --password-stdin ${REGISTRY_URL} && sudo docker pull ${REGISTRY_URL}/${REPO_NAME}:${tag} && sudo docker rm -f ${CONTAINER_NAME} || true && sudo docker rm -f devops-app || true && sudo docker run -d -p 80:8080 --name ${CONTAINER_NAME} ${REGISTRY_URL}/${REPO_NAME}:${tag}"
                         """
                     }
                 }
             }
-        }
-
-        stage("Stop Old Container") {
-            steps {
-                script {
-                    withCredentials([file(credentialsId: "ec2-pem-key", variable: "PEM_FILE")]) {
-                        bat """
-                            ssh -i "%PEM_FILE%" -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} ^
-                            "sudo docker rm -f ${CONTAINER_NAME} 2>/dev/null || true"
-                        """
-                    }
-                }
-            }
-        }
-
-        stage("Start New Container") {
-            steps {
-                script {
-                    def tag = params.BUILD_TAG
-                    withCredentials([file(credentialsId: "ec2-pem-key", variable: "PEM_FILE")]) {
-                        bat """
-                            ssh -i "%PEM_FILE%" -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} ^
-                            "sudo docker run -d -p 80:8080 --name ${CONTAINER_NAME} --restart always ${REGISTRY_URL}/${REPO_NAME}:${tag}"
-                        """
-                    }
-                }
-            }
-        }
-
-        stage("Verify Deployment") {
-            steps {
-                script {
-                    withCredentials([file(credentialsId: "ec2-pem-key", variable: "PEM_FILE")]) {
-                        bat """
-                            ssh -i "%PEM_FILE%" -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} ^
-                            "sudo docker ps | grep ${CONTAINER_NAME}"
-                        """
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo "App is LIVE at http://${EC2_HOST}"
-        }
-        failure {
-            echo "Deployment failed. Check EC2 SSH or Docker logs."
         }
     }
 }
