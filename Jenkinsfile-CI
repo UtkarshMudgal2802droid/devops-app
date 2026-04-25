@@ -21,7 +21,7 @@ pipeline {
             agent {
                 docker {
                     image "maven:3.9.6-eclipse-temurin-17"
-                    // Fixed: No pwd() mount - fresh Maven deps
+                    args "-w /home/jenkins/agent/workspace"
                 }
             }
             steps {
@@ -34,7 +34,7 @@ pipeline {
             agent {
                 docker {
                     image "maven:3.9.6-eclipse-temurin-17"
-                    // Fixed: No pwd() mount
+                    args "-w /home/jenkins/agent/workspace"
                 }
             }
             steps {
